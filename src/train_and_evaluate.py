@@ -78,14 +78,14 @@ def evaluate_model(model, label_encoder, X_test, y_test):
 
 def main():
     # Paths
-    train_path = "../data/train_data.npz"
-    test_path = "../data/test_data.npz"
+    train_path = "../data/train_data_balanced.npz"
+    test_path = "../data/test_data_balanced.npz"
 
     print("Loading prepared data...")
     train_data, test_data = load_prepared_data(train_path, test_path)
 
     # Context lengths to evaluate
-    k_values = [2, 3, 4, 5, 6, 7]
+    k_values = [2, 3, 4, 5]
 
     results = {
         "k_values": k_values,
