@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import log_loss, accuracy_score
-import json
 
 def load_prepared_data(train_path, test_path):
     """Load prepared training and test data."""
@@ -24,38 +23,13 @@ def flatten_contexts(X):
     n_samples, k, embedding_dim = X.shape
     return X.reshape(n_samples, k * embedding_dim)
 
-def load_label_mapping(dataset_path):
-    """Load the dataset and create a mapping from embeddings to labels."""
-    with open(dataset_path, "r") as f:
-        dataset = json.load(f)
-
-    embedding_to_label = {}
-
-    for recording_name, recording_data in dataset.items():
-        for bout_name, bout_data in recording_data["bouts"].items():
-            for whistle_name, whistle_data in bout_data.items():
-                embedding = tuple(whistle_data["embedding"])
-                label = whistle_data["label"]
-                embedding_to_label[embedding] = label
-
-    return embedding_to_label
-
-def embeddings_to_labels(embeddings, embedding_to_label):
-    """Convert embeddings to labels using the mapping."""
-    labels = []
-    for emb in embeddings:
-        emb_tuple = tuple(emb)
-        label = embedding_to_label.get(emb_tuple, "unknown")
-        labels.append(label)
-    return labels
-
 def train_model(X_train, y_train):
     """
     Train a logistic regression model.
 
     Args:
-        X_train: Training contexts (flattened)
-        y_train: Training target labels
+        X_train: Training contexts (flattened embeddings)
+        y_train: Training target labels (strings)
 
     Returns:
         model: Trained model
@@ -67,6 +41,7 @@ def train_model(X_train, y_train):
 
     # Train model
     print(f"  Training logistic regression on {len(X_train)} samples...")
+    print(f"  Number of unique labels: {len(label_encoder.classes_)}")
     model = LogisticRegression(max_iter=1000, random_state=42)
     model.fit(X_train, y_train_encoded)
 
@@ -79,8 +54,8 @@ def evaluate_model(model, label_encoder, X_test, y_test):
     Args:
         model: Trained model
         label_encoder: LabelEncoder for the labels
-        X_test: Test contexts (flattened)
-        y_test: Test target labels
+        X_test: Test contexts (flattened embeddings)
+        y_test: Test target labels (strings)
 
     Returns:
         metrics: Dict with cross_entropy and accuracy
@@ -105,16 +80,12 @@ def main():
     # Paths
     train_path = "../data/train_data.npz"
     test_path = "../data/test_data.npz"
-    dataset_path = "../data/dataset.json"
 
     print("Loading prepared data...")
     train_data, test_data = load_prepared_data(train_path, test_path)
 
-    print("Loading label mapping...")
-    embedding_to_label = load_label_mapping(dataset_path)
-
     # Context lengths to evaluate
-    k_values = [1, 2, 3, 4, 5, 6, 7]
+    k_values = [2, 3, 4, 5, 6, 7]
 
     results = {
         "k_values": k_values,
@@ -133,18 +104,13 @@ def main():
 
         # Load training data for this k
         X_train = train_data[f"k{k}_X"]
-        y_train_emb = train_data[f"k{k}_y"]
+        y_train = train_data[f"k{k}_y"]  # labels now, not embeddings
 
         # Load test data for this k
         X_test = test_data[f"k{k}_X"]
-        y_test_emb = test_data[f"k{k}_y"]
+        y_test = test_data[f"k{k}_y"]  # labels now, not embeddings
 
-        # Convert embeddings to labels
-        print("  Converting embeddings to labels...")
-        y_train = embeddings_to_labels(y_train_emb, embedding_to_label)
-        y_test = embeddings_to_labels(y_test_emb, embedding_to_label)
-
-        # Flatten contexts
+        # Flatten contexts (concatenate embeddings)
         X_train_flat = flatten_contexts(X_train)
         X_test_flat = flatten_contexts(X_test)
 

@@ -19,14 +19,14 @@ def create_training_samples(dataset, k, min_bout_length=None):
 
     Returns:
         X: List of context sequences (each is a list of k embeddings)
-        y: List of target embeddings (the next whistle after the context)
+        y: List of target labels (the label of the next whistle)
         metadata: List of dicts with bout/whistle info for each sample
     """
     if min_bout_length is None:
         min_bout_length = k + 1
 
-    X = []  # contexts
-    y = []  # targets
+    X = []  # contexts (embeddings)
+    y = []  # targets (labels)
     metadata = []
 
     for recording_name, recording_data in dataset.items():
@@ -40,16 +40,17 @@ def create_training_samples(dataset, k, min_bout_length=None):
             if bout_length < min_bout_length:
                 continue
 
-            # Extract embeddings for this bout
+            # Extract embeddings and labels for this bout
             embeddings = [bout_data[w_name]["embedding"] for w_name in whistle_names]
+            labels = [bout_data[w_name]["label"] for w_name in whistle_names]
 
             # Slide window through the bout
             for i in range(k, bout_length):
                 context = embeddings[i-k:i]  # k previous embeddings
-                target = embeddings[i]  # next embedding
+                target_label = labels[i]  # label of next whistle
 
                 X.append(context)
-                y.append(target)
+                y.append(target_label)
                 metadata.append({
                     "recording": recording_name,
                     "bout": bout_name,
@@ -118,15 +119,16 @@ def create_test_samples_shared_positions(dataset, k_values, min_bout_length=8):
 
             bout_data = dataset[recording_name]["bouts"][bout_name]
 
-            # Extract embeddings
+            # Extract embeddings and labels
             embeddings = [bout_data[w_name]["embedding"] for w_name in whistle_names]
+            labels = [bout_data[w_name]["label"] for w_name in whistle_names]
 
-            # Get context of length k and target
+            # Get context of length k and target label
             context = embeddings[position-k:position]
-            target = embeddings[position]
+            target_label = labels[position]
 
             X.append(context)
-            y.append(target)
+            y.append(target_label)
             metadata.append({
                 "recording": recording_name,
                 "bout": bout_name,
