@@ -56,19 +56,37 @@ def build_bouts_for_recording(whistles, recording_id, gap=6.0):
 
     return recording_struct
 
-rec_folder="/Users/chiarasemenzin/DOLPHIN1/new_extraction_dataset/2019_2020/"
+def create_dataset(rec_folder, gap=6.0):
+    dataset = {}
+    n = 0
 
-for rec in os.listdir(rec_folder):
-    rec_path = os.path.join(rec_folder, rec)
-    if os.path.isdir(rec_path):
-        json_file = os.path.join(rec_path, "window_embeddings_metadata.json")
-        npy_file = os.path.join(rec_path, "window_embeddings_encoder.npy")
+    for rec in os.listdir(rec_folder):
+        rec_path = os.path.join(rec_folder, rec)
+        if os.path.isdir(rec_path):
+            json_file = os.path.join(rec_path, "window_embeddings_metadata.json")
+            npy_file = os.path.join(rec_path, "window_embeddings_encoder.npy")
 
-        if not os.path.exists(json_file) or not os.path.exists(npy_file):
-            print(f"Skipping {rec_path}: missing required files")
-            continue
+            if not os.path.exists(json_file) or not os.path.exists(npy_file):
+                print(f"Skipping {rec_path}: missing required files")
+                continue
 
-        print("Processing recording:", rec_path)
-        whistles=load_embeddings_and_metadata(rec_path)
-        build_bouts_for_recording(whistles,rec_path)
-        print("Done!")
+            n += 1
+            print(f"Processing recording: {rec_path}")
+            whistles = load_embeddings_and_metadata(rec_path)
+            recording_struct = build_bouts_for_recording(whistles, rec_path, gap=gap)
+
+            # Use the recording name as the key
+            recording_name = rec
+            dataset[recording_name] = recording_struct
+
+    print(f"Done! Processed {n} recordings")
+    return dataset
+
+
+if __name__ == "__main__":
+    rec_folder = "/Users/chiarasemenzin/DOLPHIN1/new_extraction_dataset/2019_2020/"
+    dataset = create_dataset(rec_folder)
+
+    # Optionally save the dataset
+    with open("dataset.json", "w") as f:
+        json.dump(dataset, f, indent=2, default=lambda x: x.tolist() if isinstance(x, np.ndarray) else x)
