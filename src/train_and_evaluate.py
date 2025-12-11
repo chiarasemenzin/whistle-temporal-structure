@@ -77,11 +77,13 @@ def evaluate_model(model, label_encoder, X_test, y_test):
     }
 
 def main():
-    # Paths
+    # Paths - using balanced versions
     train_path = "../data/train_data_balanced.npz"
     test_path = "../data/test_data_balanced.npz"
 
-    print("Loading prepared data...")
+    print("Loading balanced prepared data...")
+    print(f"  Train: {train_path}")
+    print(f"  Test: {test_path}")
     train_data, test_data = load_prepared_data(train_path, test_path)
 
     # Context lengths to evaluate
