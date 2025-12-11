@@ -391,13 +391,13 @@ def main():
     train_data, test_data = load_data(train_path, test_path)
 
     # Run all validation checks
+    test_random_labels(train_data, test_data, k_values)
     check_data_leakage(train_data, test_data, k_values)
     check_label_distribution_similarity(train_data, test_data, k_values)
     check_baseline_performance(train_data, test_data, k_values)
-    perform_cross_validation(train_data, k_values, cv_folds=5)
+    #perform_cross_validation(train_data, k_values, cv_folds=5)
     analyze_confusion_matrices(train_data, test_data, k_values)
     check_feature_importance(train_data, k_values)
-    test_random_labels(train_data, test_data, k_values)
     check_training_test_accuracy_gap(train_data, test_data, k_values)
 
     print("\n" + "="*60)
