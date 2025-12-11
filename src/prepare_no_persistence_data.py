@@ -122,7 +122,7 @@ def create_training_samples_no_persistence(dataset, k, min_bout_length=None):
 
     return np.array(X), np.array(y), metadata
 
-def create_test_samples_shared_positions_no_persistence(dataset, k_values, min_bout_length=8):
+def create_test_samples_shared_positions_no_persistence(dataset, k_values, min_bout_length=5):
     """
     Create test samples with shared positions, excluding label persistence.
     """
@@ -261,7 +261,7 @@ def main():
     )
 
     # Context lengths to evaluate
-    k_values = [2, 3, 4, 5, 6, 7]
+    k_values = [2, 3, 4, 5]
 
     print("\n" + "="*60)
     print("PREPARING TRAINING DATA (NO PERSISTENCE)")

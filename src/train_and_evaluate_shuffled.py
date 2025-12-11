@@ -1,0 +1,225 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import log_loss, accuracy_score
+
+def load_prepared_data(train_path, test_path):
+    """Load prepared training and test data."""
+    train_data = np.load(train_path, allow_pickle=True)
+    test_data = np.load(test_path, allow_pickle=True)
+    return train_data, test_data
+
+def shuffle_contexts(X, seed=42):
+    """
+    Shuffle the order of whistles within each context window.
+    This destroys temporal structure while keeping the same whistles.
+
+    Args:
+        X: Array of shape (n_samples, k, embedding_dim)
+        seed: Random seed for reproducibility
+
+    Returns:
+        X_shuffled: Array with shuffled contexts
+    """
+    rng = np.random.RandomState(seed)
+    X_shuffled = X.copy()
+
+    for i in range(len(X_shuffled)):
+        # Shuffle the k whistles in this context
+        rng.shuffle(X_shuffled[i])
+
+    return X_shuffled
+
+def flatten_contexts(X):
+    """
+    Flatten context embeddings for use with sklearn models.
+
+    Args:
+        X: Array of shape (n_samples, k, embedding_dim)
+
+    Returns:
+        X_flat: Array of shape (n_samples, k * embedding_dim)
+    """
+    n_samples, k, embedding_dim = X.shape
+    return X.reshape(n_samples, k * embedding_dim)
+
+def train_model(X_train, y_train):
+    """
+    Train a logistic regression model.
+
+    Args:
+        X_train: Training contexts (flattened embeddings)
+        y_train: Training target labels (strings)
+
+    Returns:
+        model: Trained model
+        label_encoder: LabelEncoder for the labels
+    """
+    # Encode labels
+    label_encoder = LabelEncoder()
+    y_train_encoded = label_encoder.fit_transform(y_train)
+
+    # Train model
+    print(f"  Training logistic regression on {len(X_train)} samples...")
+    print(f"  Number of unique labels: {len(label_encoder.classes_)}")
+    model = LogisticRegression(max_iter=1000, random_state=42)
+    model.fit(X_train, y_train_encoded)
+
+    return model, label_encoder
+
+def evaluate_model(model, label_encoder, X_test, y_test):
+    """
+    Evaluate model and return metrics.
+
+    Args:
+        model: Trained model
+        label_encoder: LabelEncoder for the labels
+        X_test: Test contexts (flattened embeddings)
+        y_test: Test target labels (strings)
+
+    Returns:
+        metrics: Dict with cross_entropy and accuracy
+    """
+    # Encode test labels
+    y_test_encoded = label_encoder.transform(y_test)
+
+    # Get predictions
+    y_pred_proba = model.predict_proba(X_test)
+    y_pred = model.predict(X_test)
+
+    # Calculate metrics
+    cross_entropy = log_loss(y_test_encoded, y_pred_proba)
+    accuracy = accuracy_score(y_test_encoded, y_pred)
+
+    return {
+        "cross_entropy": cross_entropy,
+        "accuracy": accuracy
+    }
+
+def main():
+    # Paths - using balanced versions
+    train_path = "../data/train_data_balanced.npz"
+    test_path = "../data/test_data_balanced.npz"
+
+    print("="*60)
+    print("SHUFFLED BASELINE EVALUATION")
+    print("="*60)
+    print("\nThis baseline shuffles whistles WITHIN each context window")
+    print("to destroy temporal ordering while keeping the same content.")
+    print()
+
+    print("Loading balanced prepared data...")
+    print(f"  Train: {train_path}")
+    print(f"  Test: {test_path}")
+    train_data, test_data = load_prepared_data(train_path, test_path)
+
+    # Context lengths to evaluate
+    k_values = [2, 3, 4, 5]
+
+    results = {
+        "k_values": k_values,
+        "cross_entropy": [],
+        "accuracy": []
+    }
+
+    print("\n" + "="*60)
+    print("TRAINING AND EVALUATION (SHUFFLED CONTEXTS)")
+    print("="*60)
+
+    for k in k_values:
+        print(f"\n{'='*60}")
+        print(f"Context length k = {k}")
+        print(f"{'='*60}")
+
+        # Load training data for this k
+        X_train = train_data[f"k{k}_X"]
+        y_train = train_data[f"k{k}_y"]
+
+        # Load test data for this k
+        X_test = test_data[f"k{k}_X"]
+        y_test = test_data[f"k{k}_y"]
+
+        # SHUFFLE the contexts to destroy temporal structure
+        print(f"\n  Shuffling contexts for k={k}...")
+        X_train_shuffled = shuffle_contexts(X_train, seed=42)
+        X_test_shuffled = shuffle_contexts(X_test, seed=42)
+        print(f"  Context order has been randomized within each window")
+
+        # Flatten contexts (concatenate embeddings)
+        X_train_flat = flatten_contexts(X_train_shuffled)
+        X_test_flat = flatten_contexts(X_test_shuffled)
+
+        print(f"\n  Training samples: {len(X_train_flat)}")
+        print(f"  Test samples: {len(X_test_flat)}")
+
+        # Train model
+        model, label_encoder = train_model(X_train_flat, y_train)
+
+        # Evaluate model
+        print("  Evaluating model...")
+        metrics = evaluate_model(model, label_encoder, X_test_flat, y_test)
+
+        print(f"  Cross-entropy: {metrics['cross_entropy']:.4f}")
+        print(f"  Accuracy: {metrics['accuracy']:.4f}")
+
+        # Store results
+        results["cross_entropy"].append(metrics["cross_entropy"])
+        results["accuracy"].append(metrics["accuracy"])
+
+    # Plot results
+    print("\n" + "="*60)
+    print("PLOTTING RESULTS")
+    print("="*60)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Plot cross-entropy
+    ax1.plot(results["k_values"], results["cross_entropy"], 'o-', linewidth=2, markersize=8, color='red')
+    ax1.set_xlabel("Context Length (k)", fontsize=12)
+    ax1.set_ylabel("Cross-Entropy Loss", fontsize=12)
+    ax1.set_title("Cross-Entropy vs Context Length (SHUFFLED BASELINE)", fontsize=14)
+    ax1.grid(True, alpha=0.3)
+    ax1.set_xticks(results["k_values"])
+
+    # Plot accuracy
+    ax2.plot(results["k_values"], results["accuracy"], 'o-', linewidth=2, markersize=8, color='orange')
+    ax2.set_xlabel("Context Length (k)", fontsize=12)
+    ax2.set_ylabel("Accuracy", fontsize=12)
+    ax2.set_title("Accuracy vs Context Length (SHUFFLED BASELINE)", fontsize=14)
+    ax2.grid(True, alpha=0.3)
+    ax2.set_xticks(results["k_values"])
+
+    plt.tight_layout()
+    plt.savefig("../data/context_length_evaluation_shuffled.png", dpi=300, bbox_inches='tight')
+    print("Plot saved to ../data/context_length_evaluation_shuffled.png")
+    plt.show()
+
+    # Save results
+    np.savez("../data/evaluation_results_shuffled.npz", **results)
+    print("Results saved to ../data/evaluation_results_shuffled.npz")
+
+    # Print summary
+    print("\n" + "="*60)
+    print("SUMMARY (SHUFFLED BASELINE)")
+    print("="*60)
+    print("\nContext Length | Cross-Entropy | Accuracy")
+    print("-" * 45)
+    for i, k in enumerate(results["k_values"]):
+        ce = results["cross_entropy"][i]
+        acc = results["accuracy"][i]
+        print(f"      {k}        |    {ce:.4f}     | {acc:.4f}")
+
+    # Analyze trend
+    ce_diff = results["cross_entropy"][-1] - results["cross_entropy"][0]
+    print("\n" + "="*60)
+    print("INTERPRETATION (SHUFFLED BASELINE)")
+    print("="*60)
+    print("\nSince contexts are shuffled, temporal order is destroyed.")
+    print("If cross-entropy is flat → context size matters, not order")
+    print("If cross-entropy changes → likely due to label composition effects")
+    print("\nExpected: Shuffled baseline should be WORSE than ordered baseline")
+    print("          if temporal structure exists.")
+
+if __name__ == "__main__":
+    main()
