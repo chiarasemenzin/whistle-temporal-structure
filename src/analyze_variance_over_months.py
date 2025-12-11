@@ -23,14 +23,14 @@ def extract_year_month_from_recording(recording_name):
     """
     Extract year and month from recording name.
 
-    Recording format: Exp_DD_Mon_YYYY_HHmmam/pm
-    Example: Exp_21_Dec_2019_1145am -> (2019, 12)
+    Recording format: Exp_DD_Mon_YYYY_HHMM_channel_N
+    Example: Exp_27_Mar_2022_1745_channel_1 -> (2022, 3)
 
     Args:
         recording_name: Name of the recording
 
     Returns:
-        year_month_label: String like "2019-12"
+        year_month_label: String like "2022-03"
         year_month_numeric: Numeric value (year + (month-1)/12)
     """
     # Month name to number mapping
@@ -40,8 +40,9 @@ def extract_year_month_from_recording(recording_name):
         "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12
     }
 
-    # Extract date components
-    pattern = r'Exp_(\d{1,2})_([A-Za-z]+)_(\d{4})_(\d{4})(am|pm)'
+    # Extract date components - updated pattern for _channel_N format
+    # Pattern: Exp_DD_Mon_YYYY_HHMM_channel_N
+    pattern = r'Exp_(\d{1,2})_([A-Za-z]+)_(\d{4})_\d{4}_channel_\d+'
     match = re.search(pattern, recording_name)
 
     if match:
@@ -53,12 +54,12 @@ def extract_year_month_from_recording(recording_name):
         if month is None:
             return None, None
 
-        # Create label (e.g., "2019-12")
+        # Create label (e.g., "2022-03")
         year_month_label = f"{year}-{month:02d}"
 
         # Create numeric value for regression
         # year + (month-1)/12 gives continuous time
-        # e.g., 2019-12 -> 2019.917
+        # e.g., 2022-03 -> 2022.167
         year_month_numeric = year + (month - 1) / 12.0
 
         return year_month_label, year_month_numeric
