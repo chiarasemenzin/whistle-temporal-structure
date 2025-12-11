@@ -6,58 +6,83 @@ from sklearn.decomposition import PCA
 from scipy import stats
 import re
 
-def load_dataset(dataset_path):
-    """Load the dataset from JSON."""
-    with open(dataset_path, "r") as f:
-        dataset = json.load(f)
-    return dataset
-
-def extract_year_from_recording(recording_name):
+def load_multiple_datasets(data_dir):
     """
-    Extract year from recording name.
+    Load multiple dataset JSON files from the data directory.
 
-    Assumes recording names contain year information.
-    Adjust pattern as needed for your data.
-    """
-    # Try to find a 4-digit year in the recording name
-    match = re.search(r'(19|20)\d{2}', recording_name)
-    if match:
-        return int(match.group(0))
-    return None
+    Args:
+        data_dir: Directory containing dataset JSON files
 
-def collect_embeddings_with_years(dataset):
+    Returns:
+        datasets: Dict mapping year/period to dataset
     """
-    Collect all embeddings along with their year information.
+    dataset_files = {
+        "2019-2020": "dataset_2019_2020.json",
+        "2022": "dataset_2022.json",
+        "2023": "dataset_2023.json",
+        "2024": "dataset_2024_jan-apr.json"
+    }
+
+    datasets = {}
+    for year_label, filename in dataset_files.items():
+        filepath = f"{data_dir}/{filename}"
+        try:
+            with open(filepath, "r") as f:
+                datasets[year_label] = json.load(f)
+            print(f"Loaded {filename}: {len(datasets[year_label])} recordings")
+        except FileNotFoundError:
+            print(f"Warning: {filepath} not found, skipping")
+
+    return datasets
+
+def collect_embeddings_with_years(datasets):
+    """
+    Collect all embeddings along with their year information from multiple datasets.
+
+    Args:
+        datasets: Dict mapping year/period to dataset
 
     Returns:
         embeddings: List of embeddings (numpy arrays)
         years: List of years corresponding to each embedding
+        year_labels: List of year labels (strings)
         recording_names: List of recording names
+        labels: List of whistle labels
     """
     embeddings = []
     years = []
+    year_labels = []
     recording_names = []
     labels = []
 
-    for recording_name, recording_data in dataset.items():
-        year = extract_year_from_recording(recording_name)
+    # Map year labels to numeric values for regression
+    year_mapping = {
+        "2019-2020": 2019.5,  # Average of 2019 and 2020
+        "2022": 2022,
+        "2023": 2023,
+        "2024": 2024
+    }
 
-        if year is None:
-            print(f"Warning: Could not extract year from {recording_name}, skipping")
+    for year_label, dataset in datasets.items():
+        year_numeric = year_mapping.get(year_label)
+        if year_numeric is None:
+            print(f"Warning: No numeric mapping for {year_label}, skipping")
             continue
 
-        for bout_name, bout_data in recording_data["bouts"].items():
-            for whistle_name, whistle_data in bout_data.items():
-                embedding = whistle_data.get("embedding")
-                label = whistle_data.get("label")
+        for recording_name, recording_data in dataset.items():
+            for bout_name, bout_data in recording_data["bouts"].items():
+                for whistle_name, whistle_data in bout_data.items():
+                    embedding = whistle_data.get("embedding")
+                    label = whistle_data.get("label")
 
-                if embedding is not None:
-                    embeddings.append(np.array(embedding))
-                    years.append(year)
-                    recording_names.append(recording_name)
-                    labels.append(label)
+                    if embedding is not None:
+                        embeddings.append(np.array(embedding))
+                        years.append(year_numeric)
+                        year_labels.append(year_label)
+                        recording_names.append(recording_name)
+                        labels.append(label)
 
-    return np.array(embeddings), np.array(years), recording_names, labels
+    return np.array(embeddings), np.array(years), year_labels, recording_names, labels
 
 def bootstrap_variance(embeddings_pca, n_bootstrap=1000, seed=42):
     """
@@ -92,17 +117,21 @@ def bootstrap_variance(embeddings_pca, n_bootstrap=1000, seed=42):
     return mean, lower_ci, upper_ci
 
 def main():
-    dataset_path = "../data/dataset.json"
+    data_dir = "../data"
 
     print("="*70)
     print("VARIANCE ANALYSIS ACROSS YEARS")
     print("="*70)
 
-    print("\nLoading dataset...")
-    dataset = load_dataset(dataset_path)
+    print("\nLoading datasets...")
+    datasets = load_multiple_datasets(data_dir)
 
-    print("Extracting embeddings and year information...")
-    embeddings, years, recording_names, labels = collect_embeddings_with_years(dataset)
+    if not datasets:
+        print("Error: No datasets loaded!")
+        return
+
+    print("\nExtracting embeddings and year information...")
+    embeddings, years, year_labels_list, recording_names, labels = collect_embeddings_with_years(datasets)
 
     print(f"\nTotal embeddings: {len(embeddings)}")
     print(f"Embedding dimension: {embeddings.shape[1]}")
