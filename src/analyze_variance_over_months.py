@@ -23,8 +23,11 @@ def extract_year_month_from_recording(recording_name):
     """
     Extract year and month from recording name.
 
-    Recording format: Exp_DD_Mon_YYYY_HHMM_channel_N
-    Example: Exp_27_Mar_2022_1745_channel_1 -> (2022, 3)
+    Recording formats:
+    - Format 1: Exp_DD_Mon_YYYY_HHMMam/pm (2019-2020 data)
+      Example: Exp_25_Dec_2019_0645am -> (2019, 12)
+    - Format 2: Exp_DD_Mon_YYYY_HHMM_channel_N (2022-2024 data)
+      Example: Exp_27_Mar_2022_1745_channel_1 -> (2022, 3)
 
     Args:
         recording_name: Name of the recording
@@ -40,10 +43,14 @@ def extract_year_month_from_recording(recording_name):
         "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12
     }
 
-    # Extract date components - updated pattern for _channel_N format
-    # Pattern: Exp_DD_Mon_YYYY_HHMM_channel_N
-    pattern = r'Exp_(\d{1,2})_([A-Za-z]+)_(\d{4})_\d{4}_channel_\d+'
-    match = re.search(pattern, recording_name)
+    # Try pattern 1: Exp_DD_Mon_YYYY_HHMM_channel_N (newer format)
+    pattern1 = r'Exp_(\d{1,2})_([A-Za-z]+)_(\d{4})_\d{4}_channel_\d+'
+    match = re.search(pattern1, recording_name)
+
+    if not match:
+        # Try pattern 2: Exp_DD_Mon_YYYY_HHMMam/pm (older format)
+        pattern2 = r'Exp_(\d{1,2})_([A-Za-z]+)_(\d{4})_\d{4}(am|pm)'
+        match = re.search(pattern2, recording_name)
 
     if match:
         day = int(match.group(1))
