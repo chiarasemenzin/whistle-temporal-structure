@@ -78,8 +78,8 @@ def evaluate_model(model, label_encoder, X_test, y_test):
 
 def main():
     # Paths - using balanced versions
-    train_path = "../data/train_data_balanced.npz"
-    test_path = "../data/test_data_balanced.npz"
+    train_path = "../data/train_data_no_persist.npz"
+    test_path = "../data/test_data_no_persist.npz"
 
     print("Loading balanced prepared data...")
     print(f"  Train: {train_path}")
