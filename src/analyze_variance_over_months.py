@@ -172,6 +172,8 @@ def main():
     # Dataset files to load
     dataset_files = [
         "dataset_2019_2020.json",
+        "dataset_end_2021.json",
+        "dataset_start_2021.json",
         "dataset_2022.json",
         "dataset_2023.json",
         "dataset_2024_jan-apr.json"
